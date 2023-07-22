@@ -1,34 +1,34 @@
-node('java17-agent') {
-    stage ('Checkout') {
-        checkout scm
-    }
-
-    stage ('Git mining') {
-        discoverGitReferenceBuild()
-        mineRepository()
-        gitDiffStat()
-    }
-
-    stage ('Build, Test, and Static Analysis') {
-        withMaven(mavenLocalRepo: '/var/data/m2repository', mavenOpts: '-Xmx768m -Xms512m') {
-            sh 'mvn -V -e clean verify -Dmaven.test.failure.ignore -Dgpg.skip'
+pipeline {
+  agent any
+  triggers {
+    pollSCM('*/5 * * * *')
+  }
+  stages{
+       stage ('Build'){
+        steps {
+          sh 'mvn clean package'
         }
-
-        recordIssues tools: [java(), javaDoc()], aggregatingResults: 'true', id: 'java', name: 'Java', filters:[excludeFile('.*Assert.java')]
-        recordIssues tool: errorProne(), healthy: 1, unhealthy: 20
-
-        junit testResults: '**/target/*-reports/TEST-*.xml'
-        publishCoverage adapters: [jacocoAdapter('**/*/jacoco.xml')], sourceFileResolver: sourceFiles('STORE_ALL_BUILD')
-
-        recordIssues tools: [checkStyle(pattern: 'target/checkstyle-result.xml'),
-            spotBugs(pattern: 'target/spotbugsXml.xml'),
-            pmdParser(pattern: 'target/pmd.xml'),
-            cpd(pattern: 'target/cpd.xml'),
-            revApi(pattern: 'target/revapi-result.json'),
-            taskScanner(highTags:'FIXME', normalTags:'TODO', includePattern: '**/*.java', excludePattern: 'target/**/*')]
+         post {
+           success {
+             echo 'Archiving...'
+             archiveArtifacts artifacts:'**/target/*.war'
+           }
+         }
+       }
+       stage ('Deployments') {
+         parallel{
+           stage ('Deploy to Staging'){
+             steps {
+               sh "cp **/target/*.war /home/ivan/programms/tomcat-staging/webapps"
+             }
+           }
+           stage ('Deploy to prod') {
+             steps {
+               sh "cp **/target/*.war /home/ivan/programms/tomcat-prod/webapps"
+             }     
+           }
+         }
+       }
     }
-
-    stage ('Collect Maven Warnings') {
-        recordIssues tool: mavenConsole()
-    }
-}
+} 
+  
