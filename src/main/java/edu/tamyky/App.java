@@ -1,11 +1,15 @@
 package edu.tamyky;
 
-public class App {
-
-    private App() {
+/**
+ * Hello world!
+ *
+ */
+public class App 
+{
+    public static void main( String[] args )
+    {
+        System.out.println( "Hello Jenkins!" );
     }
 
-    public static void main(String[] args) {
-        System.out.println("Hello Jenkins!");
-    }
+
 }
